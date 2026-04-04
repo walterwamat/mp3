@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reproductor MP3 Profesional</title>
+    
+    <!-- Mantenemos FontAwesome solo para los íconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* =========================================
+           1. ESTILOS BASE Y FONDO
+        ========================================= */
+        * { box-sizing: border-box; }
+        
+        body {
+            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #1e3a8a;
+        }
+
+        /* =========================================
+           2. ANIMACIÓN DE NUBES
+        ========================================= */
+        .clouds-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            overflow: hidden; z-index: 0; pointer-events: none;
+        }
+        .cloud {
+            background: rgba(255, 255, 255, 0.7); border-radius: 100px;
+            position: absolute; box-shadow: 0 8px 15px rgba(0, 0, 0, 0.05);
+            animation: float 40s linear infinite;
+        }
+        .cloud::before, .cloud::after {
+            content: ''; position: absolute;
+            background: rgba(255, 255, 255, 0.7); border-radius: 50%;
+        }
+        .cloud-1 { width: 150px; height: 50px; top: 15%; left: -20%; animation-duration: 35s; }
+        .cloud-1::before { width: 70px; height: 70px; top: -35px; left: 20px; }
+        .cloud-1::after { width: 50px; height: 50px; top: -20px; left: 80px; }
+        
+        .cloud-2 { width: 200px; height: 60px; top: 40%; left: -30%; animation-duration: 45s; opacity: 0.6; transform: scale(0.8); }
+        .cloud-2::before { width: 90px; height: 90px; top: -45px; left: 30px; }
+        .cloud-2::after { width: 70px; height: 70px; top: -30px; left: 100px; }
+        
+        .cloud-3 { width: 120px; height: 40px; top: 70%; left: -15%; animation-duration: 25s; opacity: 0.8; transform: scale(1.2); }
+        .cloud-3::before { width: 60px; height: 60px; top: -30px; left: 15px; }
+        .cloud-3::after { width: 40px; height: 40px; top: -15px; left: 60px; }
+
+        @keyframes float {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(150vw); }
+        }
+
+        /* =========================================
+           3. PANEL PRINCIPAL (GLASSMORPHISM)
+        ========================================= */
+        .player-container {
+            width: 100%; max-width: 400px; margin: 20px; padding: 24px;
+            border-radius: 24px; z-index: 10; position: relative;
+            display: flex; flex-direction: column; gap: 24px;
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.1);
+        }
+
+        /* =========================================
+           4. ARTE DEL ÁLBUM Y ECUALIZADOR
+        ========================================= */
+        .album-art {
+            width: 100%; aspect-ratio: 16/9; border-radius: 16px;
+            background: rgba(255, 255, 255, 0.4);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .album-art i.bg-icon {
+            font-size: 4rem; color: rgba(59, 130, 246, 0.5); position: absolute;
+        }
+        #visualizer-mock {
+            display: flex; gap: 4px; align-items: flex-end;
+            height: 48px; z-index: 10; opacity: 0.7;
+        }
+        #visualizer-mock div {
+            width: 8px; background: #2563eb; border-radius: 4px 4px 0 0;
+            transition: height 0.2s;
+        }
+
+        /* =========================================
+           5. TEXTOS Y BARRA DE PROGRESO
+        ========================================= */
+        .track-info { text-align: center; }
+        .track-info h2 {
+            margin: 0 0 5px 0; font-size: 1.5rem; color: #1f2937;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .track-info p {
+            margin: 0; font-size: 1rem; color: #4b5563; opacity: 0.8;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        .progress-wrapper { display: flex; flex-direction: column; gap: 8px; }
+        
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 6px; cursor: pointer; border-radius: 10px;
+            background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255,255,255,0.3);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 16px; width: 16px; border-radius: 50%; background: #ffffff;
+            cursor: pointer; -webkit-appearance: none; margin-top: -6px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+        .time-info {
+            display: flex; justify-content: space-between;
+            font-size: 0.75rem; font-weight: 600; color: #4b5563;
+        }
+
+        /* =========================================
+           6. CONTROLES Y BOTONES
+        ========================================= */
+        .controls { display: flex; justify-content: center; align-items: center; gap: 24px; }
+        .controls button { border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        .btn-secondary {
+            width: 48px; height: 48px; border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5); color: #2563eb; font-size: 1.125rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: background 0.3s;
+        }
+        .btn-secondary:hover { background: rgba(255, 255, 255, 0.8); }
+        
+        .btn-primary {
+            width: 64px; height: 64px; border-radius: 50%;
+            background: #3b82f6; color: white; font-size: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background 0.3s;
+        }
+        .btn-primary:hover { background: #2563eb; transform: scale(1.05); }
+        .btn-primary i.fa-play { margin-left: 4px; } /* Ajuste óptico */
+        .btn-primary i.fa-pause { margin-left: 0; }
+
+        .actions {
+            display: flex; justify-content: space-between; margin-top: 8px;
+            padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .actions button {
+            background: none; border: none; cursor: pointer; position: relative;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+            color: #4b5563; font-size: 0.875rem; font-weight: 600; transition: color 0.3s;
+        }
+        .actions button:hover { color: #1d4ed8; }
+        .actions button i { font-size: 1.25rem; }
+        
+        #playlist-count {
+            position: absolute; top: -8px; right: -8px;
+            background: #ef4444; color: white; font-size: 10px; font-weight: bold;
+            width: 16px; height: 16px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* =========================================
+           7. LISTA DE REPRODUCCIÓN
+        ========================================= */
+        .playlist-container {
+            max-height: 0; overflow: hidden; opacity: 0;
+            transition: all 0.4s ease-in-out; margin-top: 0;
+        }
+        .playlist-container.active { max-height: 300px; opacity: 1; margin-top: 8px; }
+        
+        .playlist-inner {
+            background: rgba(255, 255, 255, 0.4); border-radius: 12px; padding: 8px;
+        }
+        .playlist-inner h3 { margin: 0 0 8px 0; font-size: 0.875rem; color: #1f2937; padding-left: 8px; }
+        
+        #playlist-ul {
+            list-style: none; margin: 0; padding: 0 4px 0 0;
+            max-height: 180px; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        #playlist-ul::-webkit-scrollbar { width: 6px; }
+        #playlist-ul::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.2); border-radius: 10px; }
+        #playlist-ul::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.7); border-radius: 10px; }
+        
+        #playlist-ul li {
+            padding: 8px; border-radius: 8px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            border: 1px solid transparent; color: #4b5563; transition: background 0.3s;
+        }
+        #playlist-ul li:hover { background: rgba(255, 255, 255, 0.5); }
+        #playlist-ul li.active {
+            background: rgba(255, 255, 255, 0.6); border-color: #93c5fd;
+            color: #1e40af; font-weight: bold;
+        }
+        
+        .li-info { display: flex; flex-direction: column; overflow: hidden; width: 85%; }
+        .li-title { font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+        .li-artist { font-size: 0.75rem; opacity: 0.7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+        /* =========================================
+           8. MENSAJES FLOTANTES (TOAST)
+        ========================================= */
+        .toast {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: #1e40af; color: white; padding: 8px 16px;
+            border-radius: 9999px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            font-size: 0.875rem; z-index: 50; transition: opacity 0.3s;
+        }
+        .opacity-0 { opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <!-- Animación de Fondo: Nubes -->
+    <div class="clouds-container">
+        <div class="cloud cloud-1"></div>
+        <div class="cloud cloud-2" style="animation-delay: -15s;"></div>
+        <div class="cloud cloud-3" style="animation-delay: -5s;"></div>
+        <div class="cloud cloud-1" style="top: 80%; left: -40%; animation-delay: -20s; transform: scale(0.6); opacity: 0.5;"></div>
+    </div>
+
+    <!-- Contenedor Principal del Reproductor -->
+    <div class="player-container">
+        
+        <!-- Cabecera / Arte del Álbum -->
+        <div class="album-art">
+            <i class="fa-solid fa-music bg-icon"></i>
+            <div id="visualizer-mock">
+                <!-- Barras animadas (se activan al reproducir) -->
+                <div></div><div></div><div></div><div></div><div></div>
+            </div>
+        </div>
+
+        <!-- Información de la Pista -->
+        <div class="track-info">
+            <h2 id="song-title">Cargando...</h2>
+            <p id="song-artist">Por favor espera</p>
+        </div>
+
+        <!-- Barra de Progreso y Tiempo -->
+        <div class="progress-wrapper">
+            <input type="range" id="progress-bar" value="0" min="0" max="100">
+            <div class="time-info">
+                <span id="current-time">0:00</span>
+                <span id="total-time">0:00</span>
+            </div>
+        </div>
+
+        <!-- Controles Principales -->
+        <div class="controls">
+            <button class="btn-secondary" onclick="prevSong()">
+                <i class="fa-solid fa-backward-step"></i>
+            </button>
+            
+            <button class="btn-primary" onclick="togglePlay()" id="play-btn">
+                <i class="fa-solid fa-play" id="play-icon"></i>
+            </button>
+            
+            <button class="btn-secondary" onclick="nextSong()">
+                <i class="fa-solid fa-forward-step"></i>
+            </button>
+        </div>
+
+        <!-- Botones de Acción Extra (Descargar, Compartir, Lista) -->
+        <div class="actions">
+            <button onclick="downloadCurrentSong()">
+                <i class="fa-solid fa-cloud-arrow-down"></i> Descargar
+            </button>
+
+            <button onclick="shareSong()">
+                <i class="fa-solid fa-share-nodes"></i> Compartir
+            </button>
+
+            <button onclick="togglePlaylist()">
+                <i class="fa-solid fa-list"></i> Lista
+                <span id="playlist-count">0</span>
+            </button>
+        </div>
+
+        <!-- Lista de Reproducción Desplegable (Oculta por defecto) -->
+        <div id="playlist-container" class="playlist-container">
+            <div class="playlist-inner">
+                <h3><i class="fa-solid fa-headphones"></i> Siguientes pistas</h3>
+                <ul id="playlist-ul">
+                    <!-- Los items se generan con JS -->
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Lógica del Reproductor en JavaScript -->
+    <script>
+        // =====================================================================
+        // 1. CONFIGURACIÓN DE LA LISTA DE REPRODUCCIÓN
+        // Agrega aquí todas las canciones que desees
+        // =====================================================================
+        const playlist = [
+            {
+                title: "Inspiración de Nubes",
+                artist: "Banda Sonora Libre 1",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"
+            },
+            {
+                title: "Vuelo Nocturno",
+                artist: "Banda Sonora Libre 2",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3"
+            },
+            {
+                title: "Cielo Azul Profundo",
+                artist: "Banda Sonora Libre 3",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3"
+            },
+            {
+                title: "Horizonte Lejano",
+                artist: "Banda Sonora Libre 4",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3"
+            },
+            {
+                title: "Matices de Atardecer",
+                artist: "Banda Sonora Libre 5",
+                url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3"
+            }
+        ];
+
+        // Variables de estado
+        let currentSongIndex = 0;
+        let isPlaying = false;
+        const audio = new Audio();
+        let animationInterval;
+
+        // Referencias a elementos del DOM
+        const playIcon = document.getElementById('play-icon');
+        const titleEl = document.getElementById('song-title');
+        const artistEl = document.getElementById('song-artist');
+        const progressBar = document.getElementById('progress-bar');
+        const currentTimeEl = document.getElementById('current-time');
+        const totalTimeEl = document.getElementById('total-time');
+        const playlistContainer = document.getElementById('playlist-container');
+        const playlistUl = document.getElementById('playlist-ul');
+        const playlistCount = document.getElementById('playlist-count');
+        const visualizerBars = document.querySelectorAll('#visualizer-mock div');
+
+        // Inicializar el reproductor
+        function initPlayer() {
+            loadSong(currentSongIndex);
+            renderPlaylist();
+            playlistCount.innerText = playlist.length;
+
+            audio.addEventListener('timeupdate', updateProgress);
+            audio.addEventListener('loadedmetadata', () => {
+                totalTimeEl.innerText = formatTime(audio.duration);
+            });
+            audio.addEventListener('ended', nextSong);
+
+            progressBar.addEventListener('input', (e) => {
+                if (audio.duration) {
+                    const seekTime = (progressBar.value / 100) * audio.duration;
+                    audio.currentTime = seekTime;
+                }
+            });
+        }
+
+        // Cargar canción
+        function loadSong(index) {
+            currentSongIndex = index;
+            const song = playlist[currentSongIndex];
+            
+            audio.src = song.url;
+            titleEl.innerText = song.title;
+            artistEl.innerText = song.artist;
+            
+            updatePlaylistActiveState();
+            
+            progressBar.value = 0;
+            currentTimeEl.innerText = "0:00";
+            
+            if(isPlaying) audio.play();
+        }
+
+        // Renderizar la lista
+        function renderPlaylist() {
+            playlistUl.innerHTML = '';
+            playlist.forEach((song, index) => {
+                const li = document.createElement('li');
+                li.className = index === currentSongIndex ? 'active' : '';
+                
+                li.innerHTML = `
+                    <div class="li-info">
+                        <span class="li-title">${song.title}</span>
+                        <span class="li-artist">${song.artist}</span>
+                    </div>
+                    ${index === currentSongIndex 
+                        ? '<i class="fa-solid fa-volume-high"></i>' 
+                        : '<i class="fa-solid fa-play" style="opacity:0.5"></i>'}
+                `;
+                
+                li.onclick = () => {
+                    loadSong(index);
+                    playMusic();
+                };
+                
+                playlistUl.appendChild(li);
+            });
+        }
+
+        function updatePlaylistActiveState() {
+            renderPlaylist(); 
+        }
+
+        // Funciones de reproducción
+        function playMusic() {
+            isPlaying = true;
+            audio.play();
+            playIcon.className = "fa-solid fa-pause";
+            startVisualizer();
+        }
+
+        function pauseMusic() {
+            isPlaying = false;
+            audio.pause();
+            playIcon.className = "fa-solid fa-play";
+            stopVisualizer();
+        }
+
+        function togglePlay() {
+            if (isPlaying) pauseMusic();
+            else playMusic();
+        }
+
+        function prevSong() {
+            let newIndex = currentSongIndex - 1;
+            if (newIndex < 0) newIndex = playlist.length - 1;
+            loadSong(newIndex);
+            if(isPlaying) playMusic();
+        }
+
+        function nextSong() {
+            let newIndex = currentSongIndex + 1;
+            if (newIndex >= playlist.length) newIndex = 0;
+            loadSong(newIndex);
+            if(isPlaying) playMusic();
+        }
+
+        function updateProgress(e) {
+            const { duration, currentTime } = e.srcElement;
+            currentTimeEl.innerText = formatTime(currentTime);
+            if (duration) {
+                const progressPercent = (currentTime / duration) * 100;
+                progressBar.value = progressPercent;
+            }
+        }
+
+        function formatTime(seconds) {
+            if(isNaN(seconds)) return "0:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function togglePlaylist() {
+            playlistContainer.classList.toggle('active');
+        }
+
+        async function shareSong() {
+            const song = playlist[currentSongIndex];
+            const shareData = {
+                title: song.title,
+                text: `¡Escucha "${song.title}" de ${song.artist}!`,
+                url: song.url
+            };
+
+            try {
+                if (navigator.share) {
+                    await navigator.share(shareData);
+                } else {
+                    navigator.clipboard.writeText(song.url);
+                    showMessage("¡Enlace copiado al portapapeles!");
+                }
+            } catch (err) {
+                console.log('Error al compartir', err);
+            }
+        }
+
+        async function downloadCurrentSong() {
+            const song = playlist[currentSongIndex];
+            const url = song.url;
+            const filename = `${song.artist} - ${song.title}.mp3`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Network error");
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(blobUrl);
+                document.body.removeChild(a);
+                showMessage("Iniciando descarga...");
+            } catch (err) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.target = "_blank";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            }
+        }
+
+        function showMessage(msg) {
+            const toast = document.createElement('div');
+            toast.className = "toast";
+            toast.innerText = msg;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 2500);
+        }
+
+        function startVisualizer() {
+            clearInterval(animationInterval);
+            animationInterval = setInterval(() => {
+                visualizerBars.forEach(bar => {
+                    const randomHeight = Math.floor(Math.random() * 24) + 6; 
+                    bar.style.height = `${randomHeight}px`;
+                });
+            }, 150);
+        }
+
+        function stopVisualizer() {
+            clearInterval(animationInterval);
+            visualizerBars.forEach(bar => {
+                bar.style.height = '8px';
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', initPlayer);
+    </script>
+</body>
+</html>
